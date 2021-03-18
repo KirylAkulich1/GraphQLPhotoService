@@ -27,7 +27,7 @@ var photos = [
     }
     ]
 
-    
+
 var users = [
 {"githubLogin": "mHattrup", "name": "Mike Hattrup" },
 {"githubLogin": "gPlake", "name": "Glen Plake" },
@@ -45,7 +45,14 @@ var tags = [
 const resolvers= {
     Query: {
         totalPhotos: () => photos.length,
-        allPhotos: () => photos
+        allPhotos: () => photos,
+        totalUsers: (parent, args, {db}) =>
+            db.collection('users')
+            .estimatedDocumentCount(),
+        
+        allUsers: (parent,args,{ db }) => db.collection('users')
+                .find()
+                .toArray()
     },
 
     Mutation: {
