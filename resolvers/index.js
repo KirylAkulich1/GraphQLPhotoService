@@ -1,3 +1,5 @@
+
+
 const { GraphQLScalarType } = require('graphql')
 
 var _id = 0
@@ -24,6 +26,8 @@ var photos = [
     "githubUser": "sSchmidt"
     }
     ]
+
+    
 var users = [
 {"githubLogin": "mHattrup", "name": "Mike Hattrup" },
 {"githubLogin": "gPlake", "name": "Glen Plake" },
@@ -36,10 +40,6 @@ var tags = [
     { "photoID": "2","userID": "gPlake" },
 
 ]
-
-const serialize = value => new Date(value).toISOString()
-const parseValue = value => new Date(value)
-const parseLiteral = ast => ast.value
 
 
 const resolvers= {
@@ -92,3 +92,5 @@ const resolvers= {
     )
 
 }
+
+module.exports = resolvers
