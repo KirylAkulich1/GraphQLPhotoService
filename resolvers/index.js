@@ -41,42 +41,82 @@ var tags = [
 
 ]
 
-
 const resolvers= {
     Query: {
-        totalPhotos: () => photos.length,
-        allPhotos: () => photos,
+        totalPhotos: (parent,args,{ db  }) => db.collection('photos')
+                                                .estimatedDocumentCount(),
+        allPhotos: (parent,args,{ db }) => db.collection('photos')
+                            .find(),
         totalUsers: (parent, args, {db}) =>
             db.collection('users')
             .estimatedDocumentCount(),
         
         allUsers: (parent,args,{ db }) => db.collection('users')
                 .find()
-                .toArray()
+                .toArray(),
+        me: (parent, args, {currentUser}) => currentUser,
+
     },
 
     Mutation: {
-        postPhoto(parent,args){
+        async postPhoto(parent, args, { db, currentUser }) {
 
-            var newPhoto={
-                id: _id++,
-                ...args.input
+    if (!currentUser) {
+      throw new Error('only an authorized user can post a photo')
+    }
+
+    const newPhoto = {
+      ...args.input,
+      userID: currentUser.githubLogin,
+      created: new Date()
+    }
+
+    const { insertedIds } = await db.collection('photos').insert(newPhoto)
+    newPhoto.id = insertedIds[0]
+
+    return newPhoto
+
+  },
+        async githubAuth(parent, { code }, { db }) {
+
+            let {
+              message,
+              access_token,
+              avatar_url,
+              login,
+              name
+            } = await authorizeWithGithub({
+              client_id: process.env.CLIENT_ID,
+              client_secret: process.env.CLIENT_SECRET,
+              code
+            })
+        
+            if (message) {
+              throw new Error(message)
             }
-            photos.push(newPhoto)
-            return newPhoto
-
-        }
+        
+            let latestUserInfo = {
+              name,
+              githubLogin: login,
+              githubToken: access_token,
+              avatar: avatar_url
+            }
+        
+            const { ops:[user] } = await db
+              .collection('users')
+              .replaceOne({ githubLogin: login }, latestUserInfo, { upsert: true })
+        
+            return { user, token: access_token }
+          
+          },
     },
 
     Photo:{
+        id: parent => parent.id || parent._id,
         url: parent => `http://site.com/img/${parent.id}.jpg`,
-        postedBy: parent => {
-            return users.find(u => u.githubLogin === parent.githubUser)
-        },
-        taggedUsers: parent => tags
-        .filter( tag => tag.photoID === parent.id)
-        .map(tag => tag.userID)
-        .map( userID => users.find(u => u.githubLogin === userID))
+        postedBy: (parent, args, { db }) =>
+                db.collection('users').findOne({ githubLogin: parent.userID
+                })
     },
     User: {
         postedPhotos: parent =>{
